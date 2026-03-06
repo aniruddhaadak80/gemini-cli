@@ -52,14 +52,17 @@ export class MessageBus extends EventEmitter {
       }
 
       if (message.type === MessageBusType.TOOL_CONFIRMATION_REQUEST) {
-        const { decision } = await this.policyEngine.check(
+        const { decision: policyDecision } = await this.policyEngine.check(
           message.toolCall,
           message.serverName,
           message.toolAnnotations,
         );
 
+        const decision = message.forcedDecision ?? policyDecision;
+
         switch (decision) {
           case PolicyDecision.ALLOW:
+          case 'allow':
             // Directly emit the response instead of recursive publish
             this.emitMessage({
               type: MessageBusType.TOOL_CONFIRMATION_RESPONSE,
@@ -68,6 +71,7 @@ export class MessageBus extends EventEmitter {
             });
             break;
           case PolicyDecision.DENY:
+          case 'deny':
             // Emit both rejection and response messages
             this.emitMessage({
               type: MessageBusType.TOOL_POLICY_REJECTION,
@@ -80,6 +84,7 @@ export class MessageBus extends EventEmitter {
             });
             break;
           case PolicyDecision.ASK_USER:
+          case 'ask_user':
             // Pass through to UI for user confirmation if any listeners exist.
             // If no listeners are registered (e.g., headless/ACP flows),
             // immediately request user confirmation to avoid long timeouts.

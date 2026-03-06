@@ -613,6 +613,7 @@ export class Scheduler {
         if (beforeOutput.isAskDecision()) {
           hookDecision = 'ask';
           hookSystemMessage = beforeOutput.systemMessage;
+          toolCall.request.forcedAsk = true;
         }
 
         if (beforeOutput instanceof BeforeToolHookOutput) {
