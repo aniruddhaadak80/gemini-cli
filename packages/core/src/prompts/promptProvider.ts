@@ -122,6 +122,7 @@ export class PromptProvider {
           hasSkills: skills.length > 0,
           hasHierarchicalMemory,
           contextFilenames,
+          topicUpdateNarration: config.isTopicUpdateNarrationEnabled(),
         })),
         subAgents: this.withSection('agentContexts', () =>
           config
@@ -160,6 +161,7 @@ export class PromptProvider {
               ? { path: approvedPlanPath }
               : undefined,
             taskTracker: config.isTrackerEnabled(),
+            topicUpdateNarration: config.isTopicUpdateNarrationEnabled(),
           }),
           !isPlanMode,
         ),
@@ -180,6 +182,7 @@ export class PromptProvider {
             interactive: interactiveMode,
             enableShellEfficiency: config.getEnableShellOutputEfficiency(),
             interactiveShellEnabled: config.isInteractiveShellEnabled(),
+            topicUpdateNarration: config.isTopicUpdateNarrationEnabled(),
           }),
         ),
         sandbox: this.withSection('sandbox', () => getSandboxMode()),
