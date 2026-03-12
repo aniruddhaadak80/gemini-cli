@@ -18,6 +18,9 @@ global.fetch = vi.fn();
 describe('fetch utils', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default DNS lookup to return a public IP
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    vi.mocked(dnsPromises.lookup).mockResolvedValue([{ address: '93.184.216.34', family: 4 }] as any);
   });
 
   afterAll(() => {

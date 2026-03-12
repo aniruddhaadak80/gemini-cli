@@ -40,7 +40,7 @@ import { resolveToolDeclaration } from './definitions/resolver.js';
 import { LRUCache } from 'mnemonist';
 
 const URL_FETCH_TIMEOUT_MS = 10000;
-const MAX_CONTENT_LENGTH = 100000;
+const MAX_CONTENT_LENGTH = 250000;
 const MAX_EXPERIMENTAL_FETCH_SIZE = 10 * 1024 * 1024; // 10MB
 const USER_AGENT =
   'Mozilla/5.0 (compatible; Google-Gemini-CLI/1.0; +https://github.com/google-gemini/gemini-cli)';
@@ -263,7 +263,6 @@ class WebFetchToolInvocation extends BaseToolInvocation<
   private async executeFallbackForUrl(
     urlStr: string,
     signal: AbortSignal,
-    contentBudget: number,
   ): Promise<string> {
     const url = convertGithubUrlToRaw(urlStr);
     if (this.isBlockedHost(url)) {
@@ -322,7 +321,9 @@ class WebFetchToolInvocation extends BaseToolInvocation<
         textContent = rawContent;
       }
 
-      return truncateString(textContent, contentBudget, TRUNCATION_WARNING);
+      // Cap at MAX_CONTENT_LENGTH initially to avoid excessive memory usage
+      // before the global budget allocation.
+      return truncateString(textContent, MAX_CONTENT_LENGTH, '');
     } catch (e) {
       return `Error fetching ${url}: ${getErrorMessage(e)}`;
     }
@@ -357,26 +358,57 @@ class WebFetchToolInvocation extends BaseToolInvocation<
     }
     return { toFetch, skipped };
   }
-
   private async executeFallback(
     urls: string[],
     signal: AbortSignal,
   ): Promise<ToolResult> {
     const uniqueUrls = [...new Set(urls)];
-    const contentBudget = Math.floor(
-      MAX_CONTENT_LENGTH / (uniqueUrls.length || 1),
-    );
-    const results: string[] = [];
+    const successes: Array<{ url: string; content: string }> = [];
+    const errors: Array<{ url: string; message: string }> = [];
 
     for (const url of uniqueUrls) {
-      results.push(
-        await this.executeFallbackForUrl(url, signal, contentBudget),
-      );
+      const content = await this.executeFallbackForUrl(url, signal);
+      if (content.startsWith('Error fetching')) {
+        errors.push({ url, message: content });
+      } else {
+        successes.push({ url, content });
+      }
     }
 
-    const aggregatedContent = results
-      .map((content, i) => `URL: ${uniqueUrls[i]}\nContent:\n${content}`)
-      .join('\n\n---\n\n');
+    // Smart Budget Allocation (Water-filling algorithm) for successes
+    const sortedSuccesses = [...successes].sort(
+      (a, b) => a.content.length - b.content.length,
+    );
+
+    let remainingBudget = MAX_CONTENT_LENGTH;
+    let remainingUrls = sortedSuccesses.length;
+    const finalContentsByUrl = new Map<string, string>();
+
+    for (const success of sortedSuccesses) {
+      const fairShare = Math.floor(remainingBudget / remainingUrls);
+      const allocated = Math.min(success.content.length, fairShare);
+
+      const truncated = truncateString(
+        success.content,
+        allocated,
+        TRUNCATION_WARNING,
+      );
+
+      finalContentsByUrl.set(success.url, truncated);
+      remainingBudget -= truncated.length;
+      remainingUrls--;
+    }
+
+    const aggregatedContent = uniqueUrls
+      .map((url) => {
+        const content = finalContentsByUrl.get(url);
+        if (content !== undefined) {
+          return `<source url="${url}">\n${content}\n</source>`;
+        }
+        const error = errors.find((e) => e.url === url);
+        return `<source url="${url}">\n${error?.message || 'Unknown error'}\n</source>`;
+      })
+      .join('\n');
 
     try {
       const geminiClient = this.config.getGeminiClient();
@@ -384,9 +416,9 @@ class WebFetchToolInvocation extends BaseToolInvocation<
 
 I was unable to access the URL(s) directly using the primary fetch tool. Instead, I have fetched the raw content of the page(s). Please use the following content to answer the request. Do not attempt to access the URL(s) again.
 
----
+<content>
 ${aggregatedContent}
----
+</content>
 `;
       const result = await geminiClient.generateContent(
         { model: 'web-fetch-fallback' },
@@ -716,9 +748,14 @@ Response: ${truncateString(rawResponseText, 10000, '\n\n... [Error response trun
 
     try {
       const geminiClient = this.config.getGeminiClient();
+      const sanitizedPrompt = `Instructions: ${userPrompt}
+
+Please fetch and process the following authorized URLs:
+${toFetch.join('\n')}
+`;
       const response = await geminiClient.generateContent(
         { model: 'web-fetch' },
-        [{ role: 'user', parts: [{ text: userPrompt }] }],
+        [{ role: 'user', parts: [{ text: sanitizedPrompt }] }],
         signal,
         LlmRole.UTILITY_TOOL,
       );
