@@ -461,7 +461,13 @@ export interface SandboxConfig {
   enabled: boolean;
   allowedPaths: string[];
   networkAccess: boolean;
-  command?: 'docker' | 'podman' | 'sandbox-exec' | 'runsc' | 'lxc' | 'windows-native';
+  command?:
+    | 'docker'
+    | 'podman'
+    | 'sandbox-exec'
+    | 'runsc'
+    | 'lxc'
+    | 'windows-native';
   image?: string;
 }
 
@@ -472,7 +478,14 @@ export const ConfigSchema = z.object({
       allowedPaths: z.array(z.string()).default([]),
       networkAccess: z.boolean().default(false),
       command: z
-        .enum(['docker', 'podman', 'sandbox-exec', 'runsc', 'lxc', 'windows-native'])
+        .enum([
+          'docker',
+          'podman',
+          'sandbox-exec',
+          'runsc',
+          'lxc',
+          'windows-native',
+        ])
         .optional(),
       image: z.string().optional(),
     })

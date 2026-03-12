@@ -31,11 +31,7 @@ export class WindowsSandboxManager implements SandboxManager {
   private initialized = false;
 
   constructor() {
-    this.helperPath = path.resolve(
-      __dirname,
-      'scripts',
-      'GeminiSandbox.exe',
-    );
+    this.helperPath = path.resolve(__dirname, 'scripts', 'GeminiSandbox.exe');
   }
 
   private ensureInitialized(): void {
@@ -53,7 +49,9 @@ export class WindowsSandboxManager implements SandboxManager {
           'csc.exe',
         );
         if (fs.existsSync(csc)) {
-          spawnSync(csc, ['/out:' + this.helperPath, sourcePath], { stdio: 'ignore' });
+          spawnSync(csc, ['/out:' + this.helperPath, sourcePath], {
+            stdio: 'ignore',
+          });
         }
       }
     }
@@ -107,7 +105,7 @@ export class WindowsSandboxManager implements SandboxManager {
     // 2. Construct the helper command
     // GeminiSandbox.exe <network:0|1> <cwd> <command> [args...]
     const program = this.helperPath;
-    
+
     // If the command starts with __, it's an internal command for the sandbox helper itself.
     const args = [
       req.config?.networkAccess ? '1' : '0',

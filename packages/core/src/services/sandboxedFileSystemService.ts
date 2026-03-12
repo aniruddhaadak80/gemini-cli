@@ -46,7 +46,11 @@ export class SandboxedFileSystemService implements FileSystemService {
         if (code === 0) {
           resolve(output);
         } else {
-          reject(new Error(`Sandbox Error: Command failed with exit code ${code}. ${error ? 'Details: ' + error : ''}`));
+          reject(
+            new Error(
+              `Sandbox Error: Command failed with exit code ${code}. ${error ? 'Details: ' + error : ''}`,
+            ),
+          );
         }
       });
     });
@@ -78,7 +82,11 @@ export class SandboxedFileSystemService implements FileSystemService {
         if (code === 0) {
           resolve();
         } else {
-          reject(new Error(`Sandbox Error: Command failed with exit code ${code}. ${error ? 'Details: ' + error : ''}`));
+          reject(
+            new Error(
+              `Sandbox Error: Command failed with exit code ${code}. ${error ? 'Details: ' + error : ''}`,
+            ),
+          );
         }
       });
     });

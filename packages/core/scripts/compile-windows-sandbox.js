@@ -22,9 +22,18 @@ function compileWindowsSandbox() {
     return;
   }
 
-  const srcHelperPath = path.resolve(__dirname, '../src/services/scripts/GeminiSandbox.exe');
-  const distHelperPath = path.resolve(__dirname, '../dist/src/services/scripts/GeminiSandbox.exe');
-  const sourcePath = path.resolve(__dirname, '../src/services/scripts/GeminiSandbox.cs');
+  const srcHelperPath = path.resolve(
+    __dirname,
+    '../src/services/scripts/GeminiSandbox.exe',
+  );
+  const distHelperPath = path.resolve(
+    __dirname,
+    '../dist/src/services/scripts/GeminiSandbox.exe',
+  );
+  const sourcePath = path.resolve(
+    __dirname,
+    '../src/services/scripts/GeminiSandbox.cs',
+  );
 
   if (!fs.existsSync(sourcePath)) {
     console.error(`Sandbox source not found at ${sourcePath}`);
@@ -32,7 +41,7 @@ function compileWindowsSandbox() {
   }
 
   // Ensure directories exist
-  [srcHelperPath, distHelperPath].forEach(p => {
+  [srcHelperPath, distHelperPath].forEach((p) => {
     const dir = path.dirname(p);
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
@@ -42,34 +51,52 @@ function compileWindowsSandbox() {
   // Find csc.exe (C# Compiler) which is built into Windows .NET Framework
   const systemRoot = process.env['SystemRoot'] || 'C:\\Windows';
   const cscPaths = [
-    path.join(systemRoot, 'Microsoft.NET', 'Framework64', 'v4.0.30319', 'csc.exe'),
-    path.join(systemRoot, 'Microsoft.NET', 'Framework', 'v4.0.30319', 'csc.exe'),
+    path.join(
+      systemRoot,
+      'Microsoft.NET',
+      'Framework64',
+      'v4.0.30319',
+      'csc.exe',
+    ),
+    path.join(
+      systemRoot,
+      'Microsoft.NET',
+      'Framework',
+      'v4.0.30319',
+      'csc.exe',
+    ),
   ];
 
-  const csc = cscPaths.find(p => fs.existsSync(p));
+  const csc = cscPaths.find((p) => fs.existsSync(p));
 
   if (!csc) {
-    console.warn('Windows C# compiler (csc.exe) not found. Native sandboxing will attempt to compile on first run.');
+    console.warn(
+      'Windows C# compiler (csc.exe) not found. Native sandboxing will attempt to compile on first run.',
+    );
     return;
   }
 
   console.log(`Compiling native Windows sandbox helper...`);
   // Compile to src
-  let result = spawnSync(csc, [`/out:${srcHelperPath}`, '/optimize', sourcePath], {
-    stdio: 'inherit',
-  });
+  let result = spawnSync(
+    csc,
+    [`/out:${srcHelperPath}`, '/optimize', sourcePath],
+    {
+      stdio: 'inherit',
+    },
+  );
 
   if (result.status === 0) {
     console.log('Successfully compiled GeminiSandbox.exe to src');
     // Copy to dist if dist exists
     const distDir = path.resolve(__dirname, '../dist');
     if (fs.existsSync(distDir)) {
-       const distScriptsDir = path.dirname(distHelperPath);
-       if (!fs.existsSync(distScriptsDir)) {
-         fs.mkdirSync(distScriptsDir, { recursive: true });
-       }
-       fs.copyFileSync(srcHelperPath, distHelperPath);
-       console.log('Successfully copied GeminiSandbox.exe to dist');
+      const distScriptsDir = path.dirname(distHelperPath);
+      if (!fs.existsSync(distScriptsDir)) {
+        fs.mkdirSync(distScriptsDir, { recursive: true });
+      }
+      fs.copyFileSync(srcHelperPath, distHelperPath);
+      console.log('Successfully copied GeminiSandbox.exe to dist');
     }
   } else {
     console.error('Failed to compile Windows sandbox helper.');

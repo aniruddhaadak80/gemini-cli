@@ -337,14 +337,17 @@ export class ShellExecutionService {
       const finalShell = isStrictSandbox ? 'cmd' : shell;
       let finalArgsPrefix: string[] = [];
       if (finalShell === 'cmd') {
-          finalArgsPrefix = ['/c'];
+        finalArgsPrefix = ['/c'];
       } else {
-          finalArgsPrefix = argsPrefix;
+        finalArgsPrefix = argsPrefix;
       }
 
       // We still use the original executable logic (e.g. searching for git)
       // but the guard command formatting is based on the final shell.
-      const guardedCommand = ensurePromptvarsDisabled(commandToExecute, finalShell as ShellType);
+      const guardedCommand = ensurePromptvarsDisabled(
+        commandToExecute,
+        finalShell as ShellType,
+      );
       const spawnArgs = [...finalArgsPrefix, guardedCommand];
       const env = {
         ...process.env,
@@ -475,8 +478,8 @@ export class ShellExecutionService {
 
           const isSandboxError = code === 3221225781 || code === -1073741515; // 0xC0000135
           if (isSandboxError && shellExecutionConfig.sandboxConfig?.enabled) {
-              const sandboxMessage = `\\n[GEMINI_CLI_SANDBOX_ERROR: Command execution was blocked by the native Windows sandbox. This typically means the command attempted an unauthorized network request or file access.]`;
-              combinedOutput += sandboxMessage;
+            const sandboxMessage = `\\n[GEMINI_CLI_SANDBOX_ERROR: Command execution was blocked by the native Windows sandbox. This typically means the command attempted an unauthorized network request or file access.]`;
+            combinedOutput += sandboxMessage;
           }
 
           if (state.truncated) {
@@ -628,12 +631,15 @@ export class ShellExecutionService {
       const finalShell = isStrictSandbox ? 'cmd' : shell;
       let finalArgsPrefix: string[] = [];
       if (finalShell === 'cmd') {
-          finalArgsPrefix = ['/c'];
+        finalArgsPrefix = ['/c'];
       } else {
-          finalArgsPrefix = argsPrefix;
+        finalArgsPrefix = argsPrefix;
       }
 
-      const guardedCommand = ensurePromptvarsDisabled(commandToExecute, finalShell as ShellType);
+      const guardedCommand = ensurePromptvarsDisabled(
+        commandToExecute,
+        finalShell as ShellType,
+      );
       const args = [...finalArgsPrefix, guardedCommand];
 
       const env = {
@@ -887,10 +893,14 @@ export class ShellExecutionService {
               // Store exit info for late subscribers (e.g. backgrounding race condition)
               this.exitedPtyInfo.set(ptyProcess.pid, { exitCode, signal });
 
-              const isSandboxError = exitCode === 3221225781 || exitCode === -1073741515; // 0xC0000135
+              const isSandboxError =
+                exitCode === 3221225781 || exitCode === -1073741515; // 0xC0000135
               let finalOutput = getFullBufferText(headlessTerminal);
-              if (isSandboxError && shellExecutionConfig.sandboxConfig?.enabled) {
-                  finalOutput += `\n[GEMINI_CLI_SANDBOX_ERROR: Command execution was blocked by the native Windows sandbox. This typically means the command attempted an unauthorized network request or file access.]`;
+              if (
+                isSandboxError &&
+                shellExecutionConfig.sandboxConfig?.enabled
+              ) {
+                finalOutput += `\n[GEMINI_CLI_SANDBOX_ERROR: Command execution was blocked by the native Windows sandbox. This typically means the command attempted an unauthorized network request or file access.]`;
               }
 
               setTimeout(

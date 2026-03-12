@@ -216,7 +216,7 @@ export async function start_sandbox(
       // process.argv is [node, script, ...args]
       // We want to skip the first element (node) when calling spawn(process.execPath, ...)
       const finalArgv = cliArgs.slice(1);
-      
+
       const child = spawn(process.execPath, finalArgv, {
         stdio: 'inherit',
         env: {
