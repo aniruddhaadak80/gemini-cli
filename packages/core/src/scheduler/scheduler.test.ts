@@ -876,6 +876,7 @@ describe('Scheduler (Orchestrator)', () => {
       expect(mockStateManager.cancelAllQueued).toHaveBeenCalledWith(
         'User cancelled operation',
       );
+
       expect(mockExecutor.execute).not.toHaveBeenCalled();
     });
 
