@@ -267,66 +267,64 @@ class WebFetchToolInvocation extends BaseToolInvocation<
     const url = convertGithubUrlToRaw(urlStr);
     if (this.isBlockedHost(url)) {
       debugLogger.warn(`[WebFetchTool] Blocked access to host: ${url}`);
-      return `Error fetching ${url}: Access to blocked or private host is not allowed.`;
+      throw new Error(
+        `Access to blocked or private host ${url} is not allowed.`,
+      );
     }
 
-    try {
-      const response = await retryWithBackoff(
-        async () => {
-          const res = await fetchWithTimeout(url, URL_FETCH_TIMEOUT_MS, {
-            signal,
-            headers: {
-              'User-Agent': USER_AGENT,
-            },
-          });
-          if (!res.ok) {
-            const error = new Error(
-              `Request failed with status code ${res.status} ${res.statusText}`,
-            );
-            (error as ErrorWithStatus).status = res.status;
-            throw error;
-          }
-          return res;
-        },
-        {
-          retryFetchErrors: this.config.getRetryFetchErrors(),
-          onRetry: (attempt, error, delayMs) =>
-            this.handleRetry(attempt, error, delayMs),
+    const response = await retryWithBackoff(
+      async () => {
+        const res = await fetchWithTimeout(url, URL_FETCH_TIMEOUT_MS, {
           signal,
-        },
-      );
-
-      const bodyBuffer = await this.readResponseWithLimit(
-        response,
-        MAX_EXPERIMENTAL_FETCH_SIZE,
-      );
-      const rawContent = bodyBuffer.toString('utf8');
-      const contentType = response.headers.get('content-type') || '';
-      let textContent: string;
-
-      // Only use html-to-text if content type is HTML, or if no content type is provided (assume HTML)
-      if (
-        contentType.toLowerCase().includes('text/html') ||
-        contentType === ''
-      ) {
-        textContent = convert(rawContent, {
-          wordwrap: false,
-          selectors: [
-            { selector: 'a', options: { ignoreHref: true } },
-            { selector: 'img', format: 'skip' },
-          ],
+          headers: {
+            'User-Agent': USER_AGENT,
+          },
         });
-      } else {
-        // For other content types (text/plain, application/json, etc.), use raw text
-        textContent = rawContent;
-      }
+        if (!res.ok) {
+          const error = new Error(
+            `Request failed with status code ${res.status} ${res.statusText}`,
+          );
+          (error as ErrorWithStatus).status = res.status;
+          throw error;
+        }
+        return res;
+      },
+      {
+        retryFetchErrors: this.config.getRetryFetchErrors(),
+        onRetry: (attempt, error, delayMs) =>
+          this.handleRetry(attempt, error, delayMs),
+        signal,
+      },
+    );
 
-      // Cap at MAX_CONTENT_LENGTH initially to avoid excessive memory usage
-      // before the global budget allocation.
-      return truncateString(textContent, MAX_CONTENT_LENGTH, '');
-    } catch (e) {
-      return `Error fetching ${url}: ${getErrorMessage(e)}`;
+    const bodyBuffer = await this.readResponseWithLimit(
+      response,
+      MAX_EXPERIMENTAL_FETCH_SIZE,
+    );
+    const rawContent = bodyBuffer.toString('utf8');
+    const contentType = response.headers.get('content-type') || '';
+    let textContent: string;
+
+    // Only use html-to-text if content type is HTML, or if no content type is provided (assume HTML)
+    if (
+      contentType.toLowerCase().includes('text/html') ||
+      contentType === ''
+    ) {
+      textContent = convert(rawContent, {
+        wordwrap: false,
+        selectors: [
+          { selector: 'a', options: { ignoreHref: true } },
+          { selector: 'img', format: 'skip' },
+        ],
+      });
+    } else {
+      // For other content types (text/plain, application/json, etc.), use raw text
+      textContent = rawContent;
     }
+
+    // Cap at MAX_CONTENT_LENGTH initially to avoid excessive memory usage
+    // before the global budget allocation.
+    return truncateString(textContent, MAX_CONTENT_LENGTH, '');
   }
 
   private filterAndValidateUrls(urls: string[]): {
@@ -339,9 +337,7 @@ class WebFetchToolInvocation extends BaseToolInvocation<
 
     for (const url of uniqueUrls) {
       if (this.isBlockedHost(url)) {
-        debugLogger.warn(
-          `[WebFetchTool] Skipped private or local host: ${url}`,
-        );
+        debugLogger.warn(`[WebFetchTool] Skipped private or local host: ${url}`);
         logWebFetchFallbackAttempt(
           this.config,
           new WebFetchFallbackAttemptEvent('private_ip_skipped'),
@@ -358,6 +354,7 @@ class WebFetchToolInvocation extends BaseToolInvocation<
     }
     return { toFetch, skipped };
   }
+
   private async executeFallback(
     urls: string[],
     signal: AbortSignal,
@@ -367,12 +364,28 @@ class WebFetchToolInvocation extends BaseToolInvocation<
     const errors: Array<{ url: string; message: string }> = [];
 
     for (const url of uniqueUrls) {
-      const content = await this.executeFallbackForUrl(url, signal);
-      if (content.startsWith('Error fetching')) {
-        errors.push({ url, message: content });
-      } else {
+      try {
+        const content = await this.executeFallbackForUrl(url, signal);
         successes.push({ url, content });
+      } catch (e) {
+        errors.push({ url, message: getErrorMessage(e) });
       }
+    }
+
+    // Change 2: Short-circuit on total failure
+    if (successes.length === 0) {
+      const errorMessage = `All fallback fetch attempts failed: ${errors
+        .map((e) => `${e.url}: ${e.message}`)
+        .join(', ')}`;
+      debugLogger.error(`[WebFetchTool] ${errorMessage}`);
+      return {
+        llmContent: `Error: ${errorMessage}`,
+        returnDisplay: `Error: ${errorMessage}`,
+        error: {
+          message: errorMessage,
+          type: ToolErrorType.WEB_FETCH_FALLBACK_FAILED,
+        },
+      };
     }
 
     // Smart Budget Allocation (Water-filling algorithm) for successes
@@ -406,7 +419,7 @@ class WebFetchToolInvocation extends BaseToolInvocation<
           return `<source url="${url}">\n${content}\n</source>`;
         }
         const error = errors.find((e) => e.url === url);
-        return `<source url="${url}">\n${error?.message || 'Unknown error'}\n</source>`;
+        return `<source url="${url}">\nError: ${error?.message || 'Unknown error'}\n</source>`;
       })
       .join('\n');
 
