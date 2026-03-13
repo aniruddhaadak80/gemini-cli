@@ -181,7 +181,6 @@ export const DEFAULT_MODEL_CONFIGS: ModelConfigServiceConfig = {
       extends: 'gemini-3-flash-base',
       modelConfig: {
         generateContentConfig: {
-          maxOutputTokens: 2048,
           tools: [{ urlContext: {} }],
         },
       },
@@ -189,11 +188,7 @@ export const DEFAULT_MODEL_CONFIGS: ModelConfigServiceConfig = {
     // TODO(joshualitt): During cleanup, make modelConfig optional.
     'web-fetch-fallback': {
       extends: 'gemini-3-flash-base',
-      modelConfig: {
-        generateContentConfig: {
-          maxOutputTokens: 4096,
-        },
-      },
+      modelConfig: {},
     },
     'loop-detection': {
       extends: 'gemini-3-flash-base',
