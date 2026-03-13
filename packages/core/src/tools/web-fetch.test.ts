@@ -633,6 +633,14 @@ describe('WebFetchTool', () => {
         const invocation = tool.build(params);
         const result = await invocation.execute(new AbortController().signal);
 
+        const sanitizeXml = (text: string) =>
+          text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&apos;');
+
         if (shouldConvert) {
           expect(convert).toHaveBeenCalledWith(content, {
             wordwrap: false,
@@ -641,10 +649,12 @@ describe('WebFetchTool', () => {
               { selector: 'img', format: 'skip' },
             ],
           });
-          expect(result.llmContent).toContain(`Converted: ${content}`);
+          expect(result.llmContent).toContain(
+            `Converted: ${sanitizeXml(content)}`,
+          );
         } else {
           expect(convert).not.toHaveBeenCalled();
-          expect(result.llmContent).toContain(content);
+          expect(result.llmContent).toContain(sanitizeXml(content));
         }
       },
     );

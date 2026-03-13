@@ -208,6 +208,18 @@ interface ErrorWithStatus extends Error {
   status?: number;
 }
 
+/**
+ * Sanitizes text for safe embedding in XML tags.
+ */
+function sanitizeXml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
 class WebFetchToolInvocation extends BaseToolInvocation<
   WebFetchToolParams,
   ToolResult
@@ -416,16 +428,20 @@ class WebFetchToolInvocation extends BaseToolInvocation<
       .map((url) => {
         const content = finalContentsByUrl.get(url);
         if (content !== undefined) {
-          return `<source url="${url}">\n${content}\n</source>`;
+          return `<source url="${sanitizeXml(url)}">\n${sanitizeXml(content)}\n</source>`;
         }
         const error = errors.find((e) => e.url === url);
-        return `<source url="${url}">\nError: ${error?.message || 'Unknown error'}\n</source>`;
+        return `<source url="${sanitizeXml(url)}">\nError: ${sanitizeXml(error?.message || 'Unknown error')}\n</source>`;
       })
       .join('\n');
 
     try {
       const geminiClient = this.config.getGeminiClient();
-      const fallbackPrompt = `The user requested the following: "${this.params.prompt}".
+      const fallbackPrompt = `Follow the user's instructions below using the provided webpage content.
+
+<user_instructions>
+${sanitizeXml(this.params.prompt ?? '')}
+</user_instructions>
 
 I was unable to access the URL(s) directly using the primary fetch tool. Instead, I have fetched the raw content of the page(s). Please use the following content to answer the request. Do not attempt to access the URL(s) again.
 
@@ -761,10 +777,15 @@ Response: ${truncateString(rawResponseText, 10000, '\n\n... [Error response trun
 
     try {
       const geminiClient = this.config.getGeminiClient();
-      const sanitizedPrompt = `Instructions: ${userPrompt}
+      const sanitizedPrompt = `Follow the user's instructions to process the authorized URLs.
 
-Please fetch and process the following authorized URLs:
+<user_instructions>
+${sanitizeXml(userPrompt)}
+</user_instructions>
+
+<authorized_urls>
 ${toFetch.join('\n')}
+</authorized_urls>
 `;
       const response = await geminiClient.generateContent(
         { model: 'web-fetch' },
