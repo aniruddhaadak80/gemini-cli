@@ -183,8 +183,30 @@ describe('getIdeProcessInfo', () => {
     it('should handle PowerShell failure gracefully', async () => {
       (os.platform as Mock).mockReturnValue('win32');
       mockedExec.mockRejectedValueOnce(new Error('PowerShell failed'));
-      // Fallback to getProcessInfo for current PID
-      mockedExec.mockResolvedValueOnce({ stdout: '' }); // ps command fails on windows
+      // Fallback to a targeted single-PID CIM query
+      mockedExec.mockResolvedValueOnce({
+        stdout: JSON.stringify({
+          ProcessId: 1000,
+          ParentProcessId: 900,
+          Name: 'node.exe',
+          CommandLine: 'node.exe --ide',
+        }),
+      });
+
+      const result = await getIdeProcessInfo();
+      expect(result).toEqual({ pid: 1000, command: 'node.exe --ide' });
+      expect(mockedExec).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'Get-CimInstance Win32_Process -Filter \\"ProcessId=1000\\"',
+        ),
+        expect.anything(),
+      );
+    });
+
+    it('should return an empty command when both the snapshot and the single-PID fallback fail', async () => {
+      (os.platform as Mock).mockReturnValue('win32');
+      mockedExec.mockRejectedValueOnce(new Error('PowerShell failed'));
+      mockedExec.mockRejectedValueOnce(new Error('CIM query failed'));
 
       const result = await getIdeProcessInfo();
       expect(result).toEqual({ pid: 1000, command: '' });
@@ -193,7 +215,7 @@ describe('getIdeProcessInfo', () => {
     it('should handle malformed JSON output gracefully', async () => {
       (os.platform as Mock).mockReturnValue('win32');
       mockedExec.mockResolvedValueOnce({ stdout: '{"invalid":json}' });
-      // Fallback to getProcessInfo for current PID
+      // Fallback to a targeted single-PID CIM query that returns nothing
       mockedExec.mockResolvedValueOnce({ stdout: '' });
 
       const result = await getIdeProcessInfo();
