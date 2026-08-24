@@ -275,6 +275,62 @@ describe('Extension Update Logic', () => {
       });
     });
 
+    it('should back up the current extension before installing the update', async () => {
+      await updateExtension(
+        mockExtension,
+        mockExtensionManager,
+        ExtensionUpdateState.UPDATE_AVAILABLE,
+        mockDispatch,
+      );
+
+      const backupCall = vi
+        .mocked(copyExtension)
+        .mock.calls.findIndex(
+          ([source, destination]) =>
+            source === mockExtension.path && destination === '/tmp/mock-dir',
+        );
+      expect(backupCall).toBeGreaterThanOrEqual(0);
+
+      // The backup must happen before the new version is installed so a
+      // mid-update failure can be rolled back.
+      const installCall = vi.mocked(
+        mockExtensionManager.installOrUpdateExtension,
+      ).mock.invocationCallOrder[0];
+      expect(
+        vi.mocked(copyExtension).mock.invocationCallOrder[backupCall],
+      ).toBeLessThan(installCall);
+    });
+
+    it('should restore the backup when installOrUpdateExtension fails', async () => {
+      vi.mocked(mockExtensionManager.loadExtensionConfig).mockReturnValue(
+        Promise.resolve({
+          name: 'test-extension',
+          version: '1.0.0',
+        }),
+      );
+      vi.mocked(
+        mockExtensionManager.installOrUpdateExtension,
+      ).mockRejectedValue(new Error('Install failed'));
+
+      await expect(
+        updateExtension(
+          mockExtension,
+          mockExtensionManager,
+          ExtensionUpdateState.UPDATE_AVAILABLE,
+          mockDispatch,
+        ),
+      ).rejects.toThrow('Updated extension not found after installation');
+
+      expect(copyExtension).toHaveBeenCalledWith(
+        mockExtension.path,
+        '/tmp/mock-dir',
+      );
+      expect(copyExtension).toHaveBeenCalledWith(
+        '/tmp/mock-dir',
+        mockExtension.path,
+      );
+    });
+
     it('should rollback and set state to ERROR if installation fails', async () => {
       vi.mocked(mockExtensionManager.loadExtensionConfig).mockReturnValue(
         Promise.resolve({

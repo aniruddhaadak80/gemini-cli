@@ -101,6 +101,11 @@ export async function updateExtension(
 
   const tempDir = await ExtensionStorage.createTmpDir();
   try {
+    // Back up the currently installed extension so the rollback below can
+    // actually restore it if the update fails part-way through. Without this
+    // copy, the temp directory is empty and a failed update would leave the
+    // previous installation wiped out instead of restored.
+    await copyExtension(extension.path, tempDir);
     const previousExtensionConfig = await extensionManager.loadExtensionConfig(
       extension.path,
     );
