@@ -15,6 +15,8 @@ import type { AddressInfo } from 'node:net';
 
 import { createApp, updateCoderAgentCardUrl } from './app.js';
 import type { TaskMetadata } from '../types.js';
+import { commandRegistry } from '../commands/command-registry.js';
+import type { Command } from '../commands/types.js';
 import { createMockConfig } from '../utils/testing_utils.js';
 import { debugLogger, type Config } from '@google/gemini-cli-core';
 
@@ -125,6 +127,37 @@ describe('Agent Server Endpoints', () => {
     expect(response.status).toBe(201);
     expect(response.body).toBeTypeOf('string'); // Should return the task ID
   }, 7000);
+
+  describe('POST /executeCommand (streaming error handling)', () => {
+    class FailingStreamingCommand {
+      readonly name = 'failing_stream_test';
+      readonly description = 'Throws during streaming execution.';
+      readonly streaming = true;
+      async execute(): Promise<never> {
+        throw new Error('stream exploded');
+      }
+    }
+
+    beforeAll(() => {
+      commandRegistry.register(
+        new FailingStreamingCommand() as unknown as Command,
+      );
+    });
+
+    it('reports streaming failures in-band instead of writing a JSON 500 into the SSE stream', async () => {
+      const response = await request(app)
+        .post('/executeCommand')
+        .send({ command: 'failing_stream_test', args: [] })
+        .set('Content-Type', 'application/json');
+
+      // The response is already committed as an event stream; it must not be
+      // replaced with a JSON 500 (which would throw ERR_HTTP_HEADERS_SENT).
+      expect(response.status).toBe(200);
+      expect(response.headers['content-type']).toContain('text/event-stream');
+      expect(response.text).toContain('"error"');
+      expect(response.text).toContain('stream exploded');
+    });
+  });
 
   it('should get metadata for a specific task via GET /tasks/:taskId/metadata', async () => {
     const createResponse = await createTask('test-context-2');

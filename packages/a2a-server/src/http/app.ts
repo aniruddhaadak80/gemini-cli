@@ -171,9 +171,36 @@ async function handleExecuteCommand(
       };
       eventBus.on('event', eventHandler);
 
-      await commandToExecute.execute({ ...context, eventBus }, args ?? []);
+      try {
+        await commandToExecute.execute({ ...context, eventBus }, args ?? []);
+      } catch (e) {
+        logger.error(
+          `Error executing streaming command "${command}" with args: ${JSON.stringify(
+            args,
+          )}`,
+          e,
+        );
+        // The response has already been committed as an event stream, so we
+        // cannot send a new JSON status here (that would throw
+        // ERR_HTTP_HEADERS_SENT or corrupt the stream). Report the failure
+        // in-band as a JSON-RPC error frame and close the stream.
+        if (!res.writableEnded) {
+          const errorMessage =
+            e instanceof Error ? e.message : 'Unknown error executing command';
+          res.write(
+            `data: ${JSON.stringify({
+              jsonrpc: '2.0',
+              id: null,
+              error: { code: -32603, message: errorMessage },
+            })}\n`,
+          );
+          res.end();
+        }
+        return;
+      } finally {
+        eventBus.off('event', eventHandler);
+      }
 
-      eventBus.off('event', eventHandler);
       eventBus.finished();
       return res.end(); // Explicit return for streaming path
     } else {
