@@ -286,6 +286,18 @@ export function canonicalizeMacosPath(p: string): string {
 }
 
 /**
+ * Platforms whose default file systems are case-insensitive. Path containment
+ * checks on these platforms must ignore casing differences (e.g. a drive
+ * letter or folder segment that differs only in case refers to the same
+ * directory).
+ */
+const CASE_INSENSITIVE_PLATFORMS = new Set(['win32', 'darwin']);
+
+function comparePathForContainment(p: string): string {
+  return CASE_INSENSITIVE_PLATFORMS.has(process.platform) ? p.toLowerCase() : p;
+}
+
+/**
  * Checks if a path is within a given root directory.
  * @param pathToCheck The absolute path to check.
  * @param rootDirectory The absolute root directory.
@@ -310,9 +322,14 @@ export function isWithinRoot(
       ? normalizedRootDirectory
       : normalizedRootDirectory + path.sep;
 
+  const pathToCompare = comparePathForContainment(normalizedPathToCheck);
+  const rootToCompare = comparePathForContainment(normalizedRootDirectory);
+  const rootWithSeparatorToCompare =
+    comparePathForContainment(rootWithSeparator);
+
   if (
-    normalizedPathToCheck === normalizedRootDirectory ||
-    normalizedPathToCheck.startsWith(rootWithSeparator)
+    pathToCompare === rootToCompare ||
+    pathToCompare.startsWith(rootWithSeparatorToCompare)
   ) {
     return true;
   }

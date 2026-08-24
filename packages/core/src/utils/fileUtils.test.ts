@@ -175,6 +175,73 @@ describe('fileUtils', () => {
         expect(isWithinRoot(testPath, root || defaultRoot)).toBe(expected);
       },
     );
+
+    const originalPlatform = process.platform;
+
+    const setPlatform = (platform: NodeJS.Platform) => {
+      Object.defineProperty(process, 'platform', {
+        value: platform,
+        configurable: true,
+      });
+    };
+
+    afterEach(() => {
+      Object.defineProperty(process, 'platform', {
+        value: originalPlatform,
+        configurable: true,
+      });
+    });
+
+    describe('case-insensitive platforms', () => {
+      it.each(['win32', 'darwin'] as NodeJS.Platform[])(
+        'treats casing-only differences as within the root on %s',
+        (platform) => {
+          setPlatform(platform);
+
+          // path.resolve is platform-specific, so build the paths from the
+          // resolved root to keep this test valid on any host OS.
+          const root = path.resolve(tempRootDir, 'MyProject');
+          expect(
+            isWithinRoot(
+              path.join(
+                root.slice(0, -'MyProject'.length) + 'myproject',
+                'src',
+                'file.txt',
+              ),
+              root,
+            ),
+          ).toBe(true);
+          expect(isWithinRoot(root.toUpperCase(), root)).toBe(true);
+        },
+      );
+
+      it.each(['win32', 'darwin'] as NodeJS.Platform[])(
+        'still rejects unrelated prefixes that differ beyond casing on %s',
+        (platform) => {
+          setPlatform(platform);
+
+          const root = path.resolve(tempRootDir, 'root');
+          expect(isWithinRoot(`${root}-but-actually-different`, root)).toBe(
+            false,
+          );
+          expect(
+            isWithinRoot(path.resolve(path.dirname(root), 'other'), root),
+          ).toBe(false);
+        },
+      );
+    });
+
+    it('remains case-sensitive on case-sensitive platforms', () => {
+      setPlatform('linux');
+
+      const root = path.resolve(tempRootDir, 'root');
+      expect(
+        isWithinRoot(
+          path.join(root.slice(0, -'root'.length) + 'Root', 'file.txt'),
+          root,
+        ),
+      ).toBe(false);
+    });
   });
 
   describe('getRealPath', () => {
