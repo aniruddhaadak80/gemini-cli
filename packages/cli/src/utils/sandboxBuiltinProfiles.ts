@@ -113,6 +113,8 @@ export const BUILTIN_SEATBELT_PROFILE_CONTENTS: Record<string, string> = {
     (subpath (string-append (param "HOME_DIR") "/.colima"))
     (subpath (string-append (param "HOME_DIR") "/.orbstack/run"))
     (subpath (string-append (param "HOME_DIR") "/.rd"))
+    (subpath (string-append (param "HOME_DIR") "/.local/share/containers"))
+    (subpath (string-append (param "HOME_DIR") "/.podman"))
 )
 (deny process-exec
     (literal "/usr/local/bin/docker")
@@ -250,6 +252,8 @@ export const BUILTIN_SEATBELT_PROFILE_CONTENTS: Record<string, string> = {
     (subpath (string-append (param "HOME_DIR") "/.colima"))
     (subpath (string-append (param "HOME_DIR") "/.orbstack/run"))
     (subpath (string-append (param "HOME_DIR") "/.rd"))
+    (subpath (string-append (param "HOME_DIR") "/.local/share/containers"))
+    (subpath (string-append (param "HOME_DIR") "/.podman"))
 )
 (deny process-exec
     (literal "/usr/local/bin/docker")
@@ -364,6 +368,8 @@ export const BUILTIN_SEATBELT_PROFILE_CONTENTS: Record<string, string> = {
     (subpath (string-append (param "HOME_DIR") "/.colima"))
     (subpath (string-append (param "HOME_DIR") "/.orbstack/run"))
     (subpath (string-append (param "HOME_DIR") "/.rd"))
+    (subpath (string-append (param "HOME_DIR") "/.local/share/containers"))
+    (subpath (string-append (param "HOME_DIR") "/.podman"))
 )
 (deny process-exec
     (literal "/usr/local/bin/docker")
@@ -478,6 +484,8 @@ export const BUILTIN_SEATBELT_PROFILE_CONTENTS: Record<string, string> = {
     (subpath (string-append (param "HOME_DIR") "/.colima"))
     (subpath (string-append (param "HOME_DIR") "/.orbstack/run"))
     (subpath (string-append (param "HOME_DIR") "/.rd"))
+    (subpath (string-append (param "HOME_DIR") "/.local/share/containers"))
+    (subpath (string-append (param "HOME_DIR") "/.podman"))
 )
 (deny process-exec
     (literal "/usr/local/bin/docker")
@@ -621,6 +629,8 @@ export const BUILTIN_SEATBELT_PROFILE_CONTENTS: Record<string, string> = {
     (subpath (string-append (param "HOME_DIR") "/.colima"))
     (subpath (string-append (param "HOME_DIR") "/.orbstack/run"))
     (subpath (string-append (param "HOME_DIR") "/.rd"))
+    (subpath (string-append (param "HOME_DIR") "/.local/share/containers"))
+    (subpath (string-append (param "HOME_DIR") "/.podman"))
 )
 (deny process-exec
     (literal "/usr/local/bin/docker")
@@ -764,6 +774,8 @@ export const BUILTIN_SEATBELT_PROFILE_CONTENTS: Record<string, string> = {
     (subpath (string-append (param "HOME_DIR") "/.colima"))
     (subpath (string-append (param "HOME_DIR") "/.orbstack/run"))
     (subpath (string-append (param "HOME_DIR") "/.rd"))
+    (subpath (string-append (param "HOME_DIR") "/.local/share/containers"))
+    (subpath (string-append (param "HOME_DIR") "/.podman"))
 )
 (deny process-exec
     (literal "/usr/local/bin/docker")

@@ -99,6 +99,18 @@ describe('macOS Seatbelt container runtime isolation', () => {
       );
     });
 
+    it('denies access to Podman API sockets', () => {
+      // Podman is a supported sandbox backend (sandboxConfig auto-detects it),
+      // so its rootless machine API socket must be isolated just like the
+      // Docker daemon socket.
+      expect(rules).toContain(
+        '(subpath (string-append (param "HOME_DIR") "/.local/share/containers"))',
+      );
+      expect(rules).toContain(
+        '(subpath (string-append (param "HOME_DIR") "/.podman"))',
+      );
+    });
+
     it('denies execution of container runtime binaries', () => {
       expect(rules).toContain('(literal "/usr/local/bin/docker")');
       expect(rules).toContain('(literal "/usr/bin/docker")');
